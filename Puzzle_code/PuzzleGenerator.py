@@ -218,27 +218,34 @@ class PuzzleGenerator:
         self.directory = f"{img_path[:-4]}/{rows}_x_{cols}_puzzle"
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
+        
+        self.segment = h // (4*rows)
+        if cols * self.segment * 4 > w:
+            raise ValueError("Value of cols variable is too large for the number rows provided.")
 
         #padding with border of width segment allows us to deal with border pieces easily
-        self.segment = h // (4*rows)
         self.img = np.pad(self.img, ((self.segment, self.segment),(self.segment, self.segment), (0,0)))
 
-        self.edges_arr = np.empty((rows,cols-1,2), dtype=object)
+        self.row_edges_arr = np.empty((rows,cols-1), dtype=object)
+        self.col_edges_arr = np.empty((rows-1,cols), dtype=object)
         self.pieces_arr = np.empty((rows,cols), dtype=object)
 
     def generate(self):
         #generates row x col-1 x 2 matrix of edges since thats the number of inner edges
         for i in range(self.rows):
-            for j in range(self.cols-1):
+            for j in range(self.cols):
                 for k in range(2):
-                    self.edges_arr[i,j,k] = Edge(self.segment)
                     if k == 0:
                     #randomizes the type of tab that will be created for this edge    
                         #in first dim we store left/right edges
-                        self.edges_arr[i,j,k].create_tab(random.choice([EdgeType.LEFT,EdgeType.RIGHT]))
+                        if j < self.cols-1:
+                            self.row_edges_arr[i,j] = Edge(self.segment)
+                            self.row_edges_arr[i,j].create_tab(random.choice([EdgeType.LEFT,EdgeType.RIGHT]))
                     else:
                         #in second dim we store top/bottom edges
-                        self.edges_arr[i,j,k].create_tab(random.choice([EdgeType.TOP,EdgeType.BTM]))
+                        if i < self.rows-1:
+                            self.col_edges_arr[i,j] = Edge(self.segment)
+                            self.col_edges_arr[i,j].create_tab(random.choice([EdgeType.TOP,EdgeType.BTM]))
         
         for i in range(self.rows):
             for j in range(self.cols):
@@ -249,38 +256,38 @@ class PuzzleGenerator:
                 if i != 0:
                     #add tab or space at the top'
                     #print(i,j)
-                    if self.edges_arr[j,i-1,1].edge_type == EdgeType.TOP:
-                        temp_piece.add_tab(self.edges_arr[j,i-1,1])
-                    elif self.edges_arr[j,i-1,1].edge_type == EdgeType.BTM:
-                        temp_piece.add_space(self.edges_arr[j,i-1,1])
+                    if self.col_edges_arr[i-1,j].edge_type == EdgeType.TOP:
+                        temp_piece.add_tab(self.col_edges_arr[i-1,j])
+                    elif self.col_edges_arr[i-1,j].edge_type == EdgeType.BTM:
+                        temp_piece.add_space(self.col_edges_arr[i-1,j])
                     else:
                         print("Accessing wrong set of edges left/right")
                 if j != 0:
                     #add tab or space to the left
                     #print(i,j)
-                    if self.edges_arr[i,j-1,0].edge_type == EdgeType.LEFT:
-                        temp_piece.add_tab(self.edges_arr[i,j-1,0])
-                    elif self.edges_arr[i,j-1,0].edge_type == EdgeType.RIGHT:
-                        temp_piece.add_space(self.edges_arr[i,j-1,0])
+                    if self.row_edges_arr[i,j-1].edge_type == EdgeType.LEFT:
+                        temp_piece.add_tab(self.row_edges_arr[i,j-1])
+                    elif self.row_edges_arr[i,j-1].edge_type == EdgeType.RIGHT:
+                        temp_piece.add_space(self.row_edges_arr[i,j-1])
                     else:
                         print("Accessing wrong set of edges top/bottom")
                 if i != self.rows-1:
                     #add tab or space at the bottom
                     #print(edges_arr.shape)
                     #print(i,j)
-                    if self.edges_arr[j,i,1].edge_type == EdgeType.TOP:
-                        temp_piece.add_space(self.edges_arr[j,i,1])
-                    elif self.edges_arr[j,i,1].edge_type == EdgeType.BTM:
-                        temp_piece.add_tab(self.edges_arr[j,i,1])
+                    if self.col_edges_arr[i,j].edge_type == EdgeType.TOP:
+                        temp_piece.add_space(self.col_edges_arr[i,j])
+                    elif self.col_edges_arr[i,j].edge_type == EdgeType.BTM:
+                        temp_piece.add_tab(self.col_edges_arr[i,j])
                     else:
                         print("Accessing wrong set of edges left/right")
                 if j != self.cols-1:
                     #add tab or space to the right
                     #print(i,j)
-                    if self.edges_arr[i,j,0].edge_type == EdgeType.LEFT:
-                        temp_piece.add_space(self.edges_arr[i,j,0])
-                    elif self.edges_arr[i,j,0].edge_type == EdgeType.RIGHT:
-                        temp_piece.add_tab(self.edges_arr[i,j,0])
+                    if self.row_edges_arr[i,j].edge_type == EdgeType.LEFT:
+                        temp_piece.add_space(self.row_edges_arr[i,j])
+                    elif self.row_edges_arr[i,j].edge_type == EdgeType.RIGHT:
+                        temp_piece.add_tab(self.row_edges_arr[i,j])
                     else:
                         print("Accessing wrong set of edges top/bottom")
                         
