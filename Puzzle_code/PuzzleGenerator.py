@@ -32,6 +32,7 @@ class Edge:
         self.tab_shift = self.segment//8
         self.edge_dim = 6*self.segment
         self.data = None
+        plt.rcParams['figure.dpi'] = 100
 
     def create_tab(self, edge_type=EdgeType.NOT_SET):
         '''
@@ -67,10 +68,12 @@ class Edge:
             
             buf = fig.canvas.buffer_rgba()
             ncols, nrows = fig.canvas.get_width_height()
+            #print(f"ncols, nrows: {ncols},{nrows}. fig_size: {fig_size}")
             #close all plots once done with them to avoid wasting memory
             plt.close('all')
             
             self.data = np.frombuffer(buf, dtype=np.uint8).reshape((nrows, ncols, 4))
+            print(f"Data before padding: {self.data.shape}")
             #self.size_offset = self.segment-self.data.shape[0]
             #print(self.size_offset)
         
@@ -87,9 +90,8 @@ class Edge:
                     #bottom_padding = self.segment-self.tab_shift
                     bottom_padding = 0
                     top_padding = self.tab_shift
-                    random_padding = [2*self.segment,3*self.segment]
-                    random.shuffle(random_padding)
-                    right_padding, left_padding = random_padding
+                    left_padding = random.randrange(2,4) * self.segment
+                    right_padding = 6*self.segment - left_padding - self.data.shape[0]
 
                     self.data = np.pad(self.data, ((top_padding,bottom_padding), 
                                            (left_padding,right_padding), 
@@ -102,9 +104,8 @@ class Edge:
                     #right_padding = self.segment-self.tab_shift
                     right_padding = 0
                     left_padding = self.tab_shift
-                    random_padding = [2*self.segment,3*self.segment]
-                    random.shuffle(random_padding)
-                    top_padding, bottom_padding = random_padding
+                    top_padding = random.randrange(2,4) * self.segment
+                    bottom_padding = 6*self.segment - top_padding - self.data.shape[0]
 
                     self.data = np.pad(self.data, ((top_padding,bottom_padding), 
                                            (left_padding,right_padding), 
@@ -117,13 +118,16 @@ class Edge:
                     #top_padding = self.segment-self.tab_shift
                     top_padding = 0
                     bottom_padding = self.tab_shift
-                    random_padding = [2*self.segment,3*self.segment]
-                    random.shuffle(random_padding)
-                    right_padding, left_padding = random_padding
+                    left_padding = random.randrange(2,4) * self.segment
+                    right_padding = 6*self.segment - left_padding - self.data.shape[0]
 
                     self.data = np.pad(self.data, ((top_padding,bottom_padding), 
                                            (left_padding,right_padding), 
-                                           (0,0)), mode='constant')[self.tab_shift:]
+                                           (0,0)), mode='constant')[-self.segment:]
+                    # print(self.data.shape)
+                    # print(self.tab_shift)
+                    # self.data = self.data
+                    # print(self.data.shape)
                     
                 case EdgeType.RIGHT:
                     deform_angle = random.randint(-90,90)
@@ -132,15 +136,13 @@ class Edge:
                     #left_padding = self.segment-self.tab_shift
                     left_padding = 0
                     right_padding = self.tab_shift
-                    random_padding = [2*self.segment,3*self.segment]
-                    random.shuffle(random_padding)
-                    top_padding, bottom_padding = random_padding
-
+                    top_padding = random.randrange(2,4) * self.segment
+                    bottom_padding = 6*self.segment - top_padding - self.data.shape[0]
                     
                     #print(f"Correction: {self.correction}")
                     self.data = np.pad(self.data, ((top_padding,bottom_padding), 
                                            (left_padding,right_padding), 
-                                           (0,0)), mode='constant')[:,self.tab_shift:]
+                                           (0,0)), mode='constant')[:,-self.segment:]
 
 class PuzzlePiece:
     
@@ -157,6 +159,7 @@ class PuzzlePiece:
 
     
     def add_tab(self, edge):
+        print(f"Edge data shape: {edge.data.shape}, Segment size: {self.segment}")
         match edge.edge_type:
             case EdgeType.TOP:
                 #print("tab on top")
@@ -175,12 +178,13 @@ class PuzzlePiece:
                 print("Cannot add tab with provided edge.")
 
     def add_space(self, edge):
+        print(f"Edge data shape: {edge.data.shape}")
         temp_mask = cv2.bitwise_not(edge.data)[:,:,3]
         match edge.edge_type:
             #type of edge means represents tab placement, a space would be placed in the opposite side
             case EdgeType.TOP:
                 #print("space in bottom")
-                #print(temp_mask.shape,self.piece_mask[-2*self.segment:-self.segment].shape )
+                print(temp_mask.shape,self.piece_mask[-2*self.segment:-self.segment].shape )
                 self.piece_mask[-2*self.segment:-self.segment] = cv2.bitwise_and(self.piece_mask[-2*self.segment:-self.segment], 
                                                                                  self.piece_mask[-2*self.segment:-self.segment], 
                                                                                  mask=temp_mask)
@@ -201,7 +205,7 @@ class PuzzlePiece:
                                                                                  self.piece_mask[:,self.segment:2*self.segment],
                                                                                  mask=temp_mask)
             case _:
-                print("Cannot add tab with provided edge.")
+                print("Cannot add space with provided edge.")
 
 
 class PuzzleGenerator:
@@ -211,7 +215,9 @@ class PuzzleGenerator:
         self.cols = cols
         self.img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2BGRA)
         h,w,_ = self.img.shape
-        self.img = self.img[:,:h]
+        h *= 2
+        w *= 2
+        self.img = cv2.resize(self.img, (w, h))[:,:h]
         h,w,_ = self.img.shape
 
         #creates directory for this puzzle if it does not exist
