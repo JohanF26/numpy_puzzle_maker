@@ -210,24 +210,31 @@ class PuzzlePiece:
 
 class PuzzleGenerator:
     def __init__(self, img_path, rows, cols):
-        #forces the img to be a squared img assuming h < w
         self.rows = rows
         self.cols = cols
         self.img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2BGRA)
         h,w,_ = self.img.shape
         h *= 2
         w *= 2
-        self.img = cv2.resize(self.img, (w, h))[:,:h]
+        self.img = cv2.resize(self.img, (w, h))
         h,w,_ = self.img.shape
+        
+        self.segment = h // (4*rows)
+        if rows == cols:
+            #forces the image into a square image assuming h < w
+            self.img = self.img[:,:h]
+        else:
+            validate_rect_puzzle = cols * self.segment * 4
+            if validate_rect_puzzle > w:
+                print(f"Rows: {rows}, cols: {cols}, h: {h}, w: {w}, validation: {cols * self.segment * 4}")
+                raise ValueError("Invalid Rectangular Puzzle: Value of cols variable is too large for the number rows provided.")
+            else:
+                self.img = self.img[:,:validate_rect_puzzle]
 
         #creates directory for this puzzle if it does not exist
         self.directory = f"{img_path[:-4]}/{rows}_x_{cols}_puzzle"
         if not os.path.exists(self.directory):
             os.makedirs(self.directory)
-        
-        self.segment = h // (4*rows)
-        if cols * self.segment * 4 > w:
-            raise ValueError("Value of cols variable is too large for the number rows provided.")
 
         #padding with border of width segment allows us to deal with border pieces easily
         self.img = np.pad(self.img, ((self.segment, self.segment),(self.segment, self.segment), (0,0)))
@@ -306,4 +313,4 @@ class PuzzleGenerator:
                                                  (j+1)*temp_piece.piece_dim-(j*2*self.segment)])
                 self.pieces_arr[i,j] = cv2.subtract(temp_piece.piece_mask, mask_out)
         
-                cv2.imwrite(f'{self.directory}/piece_{i}_{j}.png', self.pieces_arr[i,j])
+                print(cv2.imwrite(f'{self.directory}/piece_{i}_{j}.png', self.pieces_arr[i,j]))
